@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.ResourceBundle;
 import java.util.logging.Logger;
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -36,6 +37,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
+import javafx.scene.control.TextFormatter;
 
 /**
  *
@@ -66,11 +68,13 @@ public class MainViewController implements Initializable {
 		//
 		log().finer("\tUpdating");
 		int goal = (Integer)ptBuy.getValue();
+		ptBuy.getValueFactory().setValue(goal); // set the value back again in case of edit bug
 		log().fine("Point buy target = "+goal);
 		
 		int sum = 0;
 		for(int i = 0; i < 5; i++){
 			int score = (Integer)spinners[i].getValue();
+			spinners[i].getValueFactory().setValue(score); // set the value back again in case of edit bug
 			int pts = POINT_BUY_VALUES[score];
 			sum += pts;
 			log().fine("\t"+score+"\t("+pts+" pts)");
@@ -102,6 +106,7 @@ public class MainViewController implements Initializable {
 		SpinnerValueFactory buyValueFactory = new SpinnerValueFactory.IntegerSpinnerValueFactory(0,POINT_BUY_VALUES[18]*6,27);
 		ptBuy.setValueFactory(buyValueFactory);
 		ptBuy.valueProperty().addListener(spinnerUpdateListener);
+		forceManualUpdates(ptBuy);
 		
 		spinners[0] = stat1;
 		spinners[1] = stat2;
@@ -113,14 +118,15 @@ public class MainViewController implements Initializable {
 		
 		
 		for(int i = 0; i < 5; i++){
-			SpinnerValueFactory abilityScoreVF = new SpinnerValueFactory.IntegerSpinnerValueFactory(3,18,10);
+			SpinnerValueFactory abilityScoreVF = new SpinnerValueFactory.IntegerSpinnerValueFactory(3,18,starting[i]);
 			spinners[i].setValueFactory(abilityScoreVF);
 			spinners[i].valueProperty().addListener(spinnerUpdateListener);
-			abilityScoreVF.setValue(starting[i]);
+			
+			// hook in a formatter with the same properties as the factory so that we can force it to update on loos-of-focus after manually typing
+			forceManualUpdates(spinners[i]);
 		}
 		
-		
-		update();
+		Platform.runLater(this::update);
 	}	
 	
 	private static Logger log(){
@@ -146,6 +152,13 @@ public class MainViewController implements Initializable {
 			spinners[i].getValueFactory().setValue(sum);
 		}
 		update();
+	}
+
+	private static void forceManualUpdates(Spinner spinner) {
+		SpinnerValueFactory factory = spinner.getValueFactory();
+		TextFormatter formatter = new TextFormatter(factory.getConverter(), factory.getValue());
+		spinner.getEditor().setTextFormatter(formatter);
+		factory.valueProperty().bindBidirectional(formatter.valueProperty());
 	}
 	
 }
